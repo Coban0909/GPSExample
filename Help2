@@ -1,0 +1,123 @@
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Scanner;
+
+public class CronScheduleCalculator {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        // Get the current date and time from the user
+        System.out.println("Enter current date and time (yyyy-MM-dd HH:mm:ss):");
+        String currentDateTimeStr = scanner.nextLine();
+
+        // Parse the user input to LocalDateTime
+        LocalDateTime currentDateTime = LocalDateTime.parse(currentDateTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+        // Get the cron expression from the user
+        System.out.println("Enter cron expression:");
+        String cronExpression = scanner.nextLine();
+
+        // Calculate the next and last execution times
+        LocalDateTime nextExecutionTime = getNextExecutionTime(currentDateTime, cronExpression);
+        LocalDateTime lastExecutionTime = getLastExecutionTime(currentDateTime, cronExpression);
+
+        // Format and print the results
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        if (nextExecutionTime != null) {
+            System.out.println("Next scheduled time: " + nextExecutionTime.format(formatter));
+        } else {
+            System.out.println("No next execution time found.");
+        }
+
+        if (lastExecutionTime != null) {
+            System.out.println("Last scheduled time: " + lastExecutionTime.format(formatter));
+        } else {
+            System.out.println("No last execution time found.");
+        }
+
+        scanner.close();
+    }
+
+    private static LocalDateTime getNextExecutionTime(LocalDateTime currentDateTime, String cronExpression) {
+        return calculateExecutionTime(currentDateTime, cronExpression, true);
+    }
+
+    private static LocalDateTime getLastExecutionTime(LocalDateTime currentDateTime, String cronExpression) {
+        return calculateExecutionTime(currentDateTime, cronExpression, false);
+    }
+
+    private static LocalDateTime calculateExecutionTime(LocalDateTime currentDateTime, String cronExpression, boolean next) {
+        String[] parts = cronExpression.split(" ");
+        int[] cronMinutes = parseCronField(parts[0], 0, 59);
+        int[] cronHours = parseCronField(parts[1], 0, 23);
+        int[] cronDays = parseCronField(parts[2], 1, 31);
+        int[] cronMonths = parseCronField(parts[3], 1, 12);
+        int[] cronDaysOfWeek = parseCronField(parts[4], 0, 7);
+
+        LocalDateTime testDateTime = currentDateTime.withSecond(0).withNano(0);
+
+        for (int i = 0; i < 365; i++) { // check for the next 365 days to find a match
+            for (int hour : cronHours) {
+                for (int minute : cronMinutes) {
+                    testDateTime = next ? testDateTime.plusMinutes(1) : testDateTime.minusMinutes(1);
+                    if (isValidTime(testDateTime, cronMinutes, cronHours, cronDays, cronMonths, cronDaysOfWeek)) {
+                        return testDateTime;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isValidTime(LocalDateTime dateTime, int[] cronMinutes, int[] cronHours, int[] cronDays, int[] cronMonths, int[] cronDaysOfWeek) {
+        if (!matchesField(dateTime.getMinute(), cronMinutes)) return false;
+        if (!matchesField(dateTime.getHour(), cronHours)) return false;
+        if (!matchesField(dateTime.getDayOfMonth(), cronDays)) return false;
+        if (!matchesField(dateTime.getMonthValue(), cronMonths)) return false;
+        if (!matchesField(dateTime.getDayOfWeek().getValue() % 7, cronDaysOfWeek)) return false;
+        return true;
+    }
+
+    private static boolean matchesField(int value, int[] cronField) {
+        for (int i : cronField) {
+            if (i == value) return true;
+        }
+        return false;
+    }
+
+    private static int[] parseCronField(String field, int minValue, int maxValue) {
+        if (field.equals("*")) {
+            int[] allValues = new int[maxValue - minValue + 1];
+            for (int i = 0; i < allValues.length; i++) {
+                allValues[i] = minValue + i;
+            }
+            return allValues;
+        } else if (field.contains(",")) {
+            String[] parts = field.split(",");
+            int[] values = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                values[i] = Integer.parseInt(parts[i]);
+            }
+            return values;
+        } else if (field.contains("-")) {
+            String[] range = field.split("-");
+            int start = Integer.parseInt(range[0]);
+            int end = Integer.parseInt(range[1]);
+            int[] values = new int[end - start + 1];
+            for (int i = 0; i < values.length; i++) {
+                values[i] = start + i;
+            }
+            return values;
+        } else if (field.contains("/")) {
+            String[] step = field.split("/");
+            int stepValue = Integer.parseInt(step[1]);
+            int[] values = new int[(maxValue - minValue + stepValue) / stepValue];
+            for (int i = 0, value = minValue; value <= maxValue; value += stepValue, i++) {
+                values[i] = value;
+            }
+            return values;
+        } else {
+            return new int[]{Integer.parseInt(field)};
+        }
+    }
+}
