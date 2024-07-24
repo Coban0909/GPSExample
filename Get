@@ -1,15 +1,22 @@
-<table border="1" id="myTable" width="100%">
-    <tr bgcolor="GOLD">
-        <th style="background-color:yellow" colspan="11">Vv6 Production Tomcat Servers</th>
-    </tr>
-    <tr>
-        <th>Website</th>
-        <th>Status</th>
-    </tr>
-    <tr bgcolor="GOLD">
-        <td id="3Dpassport">
-            <a href="https://3dpassport-prod.us.baesystems.com:443/3dpassport" target="_blank">3DPassport</a>
-        </td>
-        <td id="diskspace"><%= readPage("3dpassport") %></td>
-    </tr>
-</table>
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
+
+public class TomcatThreadCount {
+
+    public static void main(String[] args) throws Exception {
+        String jmxUrl = "service:jmx:rmi:///jndi/rmi://nhnaunxlpdmp044:12345/jmxrmi";
+        JMXServiceURL url = new JMXServiceURL(jmxUrl);
+        JMXConnector jmxConnector = JMXConnectorFactory.connect(url);
+        MBeanServerConnection mbeanServerConnection = jmxConnector.getMBeanServerConnection();
+
+        ObjectName threadPoolMBean = new ObjectName("Catalina:type=ThreadPool,name=\"http-nio-8070\"");
+        Integer threadCount = (Integer) mbeanServerConnection.getAttribute(threadPoolMBean, "currentThreadCount");
+
+        System.out.println("Current Thread Count: " + threadCount);
+
+        jmxConnector.close();
+    }
+}
